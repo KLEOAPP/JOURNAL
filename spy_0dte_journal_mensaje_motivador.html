@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPY 0DTE - Calculadora ponderada</title>
+<style>
+:root{
+  --bg:#000000;--panel:#000000;--panel2:#000000;--border:#30405c;
+  --text:#fff;--muted:#aebbd1;--bull:#00C853;--neutral:#FFAB00;--bear:#D50000;
+}
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#000000;color:var(--text);margin:0;padding:16px}
+.container{max-width:800px;margin:auto}
+.card{background:var(--panel);border-radius:16px;padding:18px;margin-bottom:16px}
+h1{margin:0 0 8px;font-size:28px}
+.subtitle,.note{color:var(--muted);line-height:1.45}
+.row,.mini-row{
+  display:grid;grid-template-columns:1fr 310px;gap:14px;align-items:center;
+  padding:14px 0;border-bottom:1px solid var(--border)
+}
+.row:last-child,.mini-row:last-child{border-bottom:none}
+.name,.ticker{font-weight:bold}
+.weight{font-size:12px;color:#8fa0bb;margin-top:3px}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #42516b;border-radius:10px;overflow:hidden}
+.choices input{position:absolute;opacity:0;pointer-events:none}
+.choices label{
+  padding:11px 5px;text-align:center;font-size:13px;background:#243149;color:var(--muted);
+  cursor:pointer;border-right:1px solid #42516b
+}
+.choices label:last-child{border-right:none}
+.choices input:checked + label.bull{background:var(--bull);color:white}
+.choices input:checked + label.neutral{background:var(--neutral);color:white}
+.choices input:checked + label.bear{background:var(--bear);color:white}
+.mag7-box{margin:8px 0 18px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
+.mag7-title{font-size:17px;font-weight:bold;margin-bottom:5px}
+.mag7-note{font-size:12px;color:#9eacc2;line-height:1.45;margin-bottom:8px}
+.mini-row{grid-template-columns:110px 1fr;padding:9px 0}
+.choices.mini label{font-size:12px;padding:9px 3px}
+.auto-badge{display:inline-block;margin-top:8px;padding:7px 10px;border-radius:8px;font-weight:bold;background:#243149}
+.mag7-score{font-size:13px;color:#cbd6e7;margin-top:7px}
+.result{text-align:center;padding:28px 18px}
+.direction{font-size:32px;font-weight:bold}
+.percent{font-size:76px;font-weight:bold;margin:4px 0}
+.score{font-size:17px;color:#d4deed}
+.message{font-size:16px;color:var(--muted);margin-top:12px}
+@media(max-width:620px){
+  .row,.mini-row{grid-template-columns:1fr;gap:9px}
+  .choices label{font-size:11px;padding:11px 2px}
+}
+
+.trade-journal{
+  margin-top:18px;
+}
+.trade-form{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+.trade-form .full{
+  grid-column:1 / -1;
+}
+.trade-form label{
+  display:block;
+  font-size:12px;
+  color:#aebbd1;
+  margin-bottom:5px;
+}
+.trade-form input,
+.trade-form select{
+  width:100%;
+  padding:12px;
+  background:#0b0b0b;
+  color:white;
+  border:1px solid #333;
+  border-radius:9px;
+  font-size:15px;
+}
+.trade-buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:12px;
+}
+.trade-buttons button{
+  padding:12px;
+  border:0;
+  border-radius:9px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.save-trade{
+  background:#00C853;
+  color:#03120c;
+}
+.clear-trades{
+  background:#3a3a3a;
+  color:white;
+}
+.trade-stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:16px;
+}
+.stat-box{
+  background:#050505;
+  border:1px solid #252525;
+  border-radius:10px;
+  padding:12px;
+  text-align:center;
+}
+.stat-value{
+  font-size:22px;
+  font-weight:bold;
+}
+.stat-label{
+  font-size:11px;
+  color:#aebbd1;
+  margin-top:4px;
+}
+.trade-table-wrap{
+  overflow-x:auto;
+  margin-top:16px;
+}
+.trade-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:650px;
+}
+.trade-table th,
+.trade-table td{
+  padding:10px;
+  border-bottom:1px solid #242424;
+  text-align:left;
+  font-size:13px;
+}
+.trade-table th{
+  color:#aebbd1;
+}
+.win{color:#00C853;font-weight:bold}
+.loss{color:#D50000;font-weight:bold}
+.delete-btn{
+  background:#2b2b2b;
+  color:white;
+  border:0;
+  border-radius:6px;
+  padding:6px 9px;
+  cursor:pointer;
+}
+@media(max-width:620px){
+  .trade-form{grid-template-columns:1fr}
+  .trade-form .full{grid-column:auto}
+  .trade-stats{grid-template-columns:repeat(2,1fr)}
+}
+
+
+#tradeAmount.win-input{
+  color:#00C853;
+  font-weight:bold;
+}
+#tradeAmount.loss-input{
+  color:#D50000;
+  font-weight:bold;
+}
+
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>SPY 0DTE</h1>
+    <div class="subtitle">Magnificent 7 se calcula automáticamente según su peso aproximado en el S&P 500. Net Drift se selecciona como Positivo, Neutral o Negativo.</div>
+
+    <div class="row">
+      <div><div class="name">GEX</div><div class="weight">Peso del modelo: 20%</div></div>
+      <div class="choices">
+        <input type="radio" name="gex" id="gex_bull" value="1" checked><label class="bull" for="gex_bull">Alcista</label>
+        <input type="radio" name="gex" id="gex_neutral" value="0"><label class="neutral" for="gex_neutral">Neutral</label>
+        <input type="radio" name="gex" id="gex_bear" value="-1"><label class="bear" for="gex_bear">Bajista</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><div class="name">Market Sentiment</div><div class="weight">Peso del modelo: 15%</div></div>
+      <div class="choices">
+        <input type="radio" name="sentiment" id="sentiment_bull" value="1" checked><label class="bull" for="sentiment_bull">Alcista</label>
+        <input type="radio" name="sentiment" id="sentiment_neutral" value="0"><label class="neutral" for="sentiment_neutral">Neutral</label>
+        <input type="radio" name="sentiment" id="sentiment_bear" value="-1"><label class="bear" for="sentiment_bear">Bajista</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><div class="name">Net Drift (SPX)</div><div class="weight">Peso del modelo: 18%</div></div>
+      <div class="choices">
+        <input type="radio" name="netdrift" id="netdrift_bull" value="1" checked><label class="bull" for="netdrift_bull">Positivo</label>
+        <input type="radio" name="netdrift" id="netdrift_neutral" value="0"><label class="neutral" for="netdrift_neutral">Neutral</label>
+        <input type="radio" name="netdrift" id="netdrift_bear" value="-1"><label class="bear" for="netdrift_bear">Negativo</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="name">Magnificent 7</div>
+        <div class="weight">Peso del modelo: 12% · Cálculo ponderado automático</div>
+        <div id="mag7Auto" class="auto-badge">Alcista</div>
+        <div id="mag7Score" class="mag7-score"></div>
+      </div>
+      <div class="choices">
+        <input type="radio" name="mag7" id="mag7_bull" value="1" checked disabled><label class="bull" for="mag7_bull">Alcista</label>
+        <input type="radio" name="mag7" id="mag7_neutral" value="0" disabled><label class="neutral" for="mag7_neutral">Neutral</label>
+        <input type="radio" name="mag7" id="mag7_bear" value="-1" disabled><label class="bear" for="mag7_bear">Bajista</label>
+      </div>
+    </div>
+
+    <div class="mag7-box">
+      <div class="mag7-title">Detalle ponderado de las Magnificent 7</div>
+      <div class="mag7-note">
+        El sistema suma el peso de las que suben y resta el peso de las que bajan.
+        Alphabet incluye GOOGL + GOOG porque ambas clases forman parte del S&P 500.
+      </div>
+      <div id="mag7Rows"></div>
+    </div>
+
+    <div class="row">
+      <div><div class="name">VWAP</div><div class="weight">Peso del modelo: 15%</div></div>
+      <div class="choices">
+        <input type="radio" name="vwap" id="vwap_bull" value="1" checked><label class="bull" for="vwap_bull">Encima</label>
+        <input type="radio" name="vwap" id="vwap_neutral" value="0"><label class="neutral" for="vwap_neutral">Cerca</label>
+        <input type="radio" name="vwap" id="vwap_bear" value="-1"><label class="bear" for="vwap_bear">Debajo</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><div class="name">VIX</div><div class="weight">Peso del modelo: 10%</div></div>
+      <div class="choices">
+        <input type="radio" name="vix" id="vix_bull" value="1" checked><label class="bull" for="vix_bull">Bajando</label>
+        <input type="radio" name="vix" id="vix_neutral" value="0"><label class="neutral" for="vix_neutral">Neutral</label>
+        <input type="radio" name="vix" id="vix_bear" value="-1"><label class="bear" for="vix_bear">Subiendo</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><div class="name">Volumen</div><div class="weight">Peso del modelo: 10%</div></div>
+      <div class="choices">
+        <input type="radio" name="volume" id="volume_bull" value="1" checked><label class="bull" for="volume_bull">Comprador</label>
+        <input type="radio" name="volume" id="volume_neutral" value="0"><label class="neutral" for="volume_neutral">Neutral</label>
+        <input type="radio" name="volume" id="volume_bear" value="-1"><label class="bear" for="volume_bear">Vendedor</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card result">
+    <div id="direction" class="direction">CALL</div>
+    <div id="percent" class="percent">84%</div>
+    <div id="score" class="score"></div>
+    <div id="message" class="message"></div>
+  </div>
+
+  
+  <div class="card trade-journal">
+    <h2>Registro de Trades</h2>
+    <div class="subtitle">Guarda cada operación y calcula tus resultados reales.</div>
+
+    <div class="trade-form">
+      <div>
+        <label for="tradeDate">Fecha y hora</label>
+        <input id="tradeDate" type="datetime-local">
+      </div>
+
+      <div>
+        <label for="tradeSide">Dirección</label>
+        <select id="tradeSide">
+          <option value="CALL">CALL</option>
+          <option value="PUT">PUT</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="tradeResult">Result (Automatic)</label>
+        <input id="tradeResult" type="text" value="WIN" readonly>
+      </div>
+
+      <div>
+        <label for="tradeAmount">Cantidad ($)</label>
+        <input id="tradeAmount" type="number" step="0.01" placeholder="Ej. 125.50">
+      </div>
+
+      <div class="full">
+        <label for="tradeNotes">Notas</label>
+        <input id="tradeNotes" type="text" placeholder="Ej. entrada sobre VWAP, 6 señales alineadas">
+      </div>
+    </div>
+
+    <div class="trade-buttons">
+      <button class="save-trade" type="button" onclick="saveTrade()">Guardar trade</button>
+      <button class="clear-trades" type="button" onclick="clearTrades()">Borrar todos</button>
+    </div>
+
+    <div class="trade-stats">
+      <div class="stat-box">
+        <div id="totalTrades" class="stat-value">0</div>
+        <div class="stat-label">Trades</div>
+      </div>
+      <div class="stat-box">
+        <div id="winRate" class="stat-value">0%</div>
+        <div class="stat-label">Win Rate</div>
+      </div>
+      <div class="stat-box">
+        <div id="netProfit" class="stat-value">$0.00</div>
+        <div class="stat-label">Net P/L</div>
+      </div>
+      <div class="stat-box">
+        <div id="avgTrade" class="stat-value">$0.00</div>
+        <div class="stat-label">Average P/L</div>
+      </div>
+    </div>
+
+    <div class="trade-table-wrap">
+      <table class="trade-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Dirección</th>
+            <th>Result</th>
+            <th>Cantidad</th>
+            <th>Notas</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tradeRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">
+    Tu ventaja no está en una sola operación, sino en ejecutar tu plan todos los días.
+  </div>
+</div>
+
+<script>
+(function(){
+  var mag7 = [
+    {ticker:"NVDA", weight:7.24},
+    {ticker:"AAPL", weight:7.22},
+    {ticker:"GOOGL + GOOG", key:"alphabet", weight:6.23},
+    {ticker:"MSFT", weight:4.31},
+    {ticker:"AMZN", weight:3.92},
+    {ticker:"META", weight:2.42},
+    {ticker:"TSLA", weight:2.11}
+  ];
+
+  var holder = document.getElementById("mag7Rows");
+
+  mag7.forEach(function(item){
+    var key = item.key || item.ticker.toLowerCase();
+    holder.insertAdjacentHTML("beforeend",
+      '<div class="mini-row">'+
+        '<div><div class="ticker">'+item.ticker+'</div><div class="weight">'+item.weight.toFixed(2)+'% del S&P 500</div></div>'+
+        '<div class="choices mini">'+
+          '<input type="radio" name="'+key+'" id="'+key+'_up" value="1" checked>'+
+          '<label class="bull" for="'+key+'_up">Subiendo</label>'+
+          '<input type="radio" name="'+key+'" id="'+key+'_flat" value="0">'+
+          '<label class="neutral" for="'+key+'_flat">Neutral</label>'+
+          '<input type="radio" name="'+key+'" id="'+key+'_down" value="-1">'+
+          '<label class="bear" for="'+key+'_down">Bajando</label>'+
+        '</div>'+
+      '</div>'
+    );
+  });
+
+  var modelWeights = {gex:20, sentiment:15, netdrift:18, mag7:12, vwap:15, vix:10, volume:10};
+
+  function selectedValue(name){
+    var el = document.querySelector('input[name="'+name+'"]:checked');
+    return el ? Number(el.value) : 0;
+  }
+
+  function updateMag7(){
+    var totalWeight = 0;
+    var directionalWeight = 0;
+    var upWeight = 0;
+    var downWeight = 0;
+    var neutralWeight = 0;
+
+    mag7.forEach(function(item){
+      var key = item.key || item.ticker.toLowerCase();
+      var v = selectedValue(key);
+      totalWeight += item.weight;
+      directionalWeight += v * item.weight;
+      if(v === 1) upWeight += item.weight;
+      else if(v === -1) downWeight += item.weight;
+      else neutralWeight += item.weight;
+    });
+
+    var normalized = directionalWeight / totalWeight;
+    var state = 0;
+
+    // Se exige una ventaja ponderada mínima de 15% para salir de neutral.
+    if(normalized >= 0.15) state = 1;
+    else if(normalized <= -0.15) state = -1;
+
+    document.getElementById("mag7_bull").checked = state === 1;
+    document.getElementById("mag7_neutral").checked = state === 0;
+    document.getElementById("mag7_bear").checked = state === -1;
+
+    var badge = document.getElementById("mag7Auto");
+    var scoreText = document.getElementById("mag7Score");
+
+    if(state === 1){
+      badge.textContent = "Alcista";
+      badge.style.background = "#00C853";
+    }else if(state === -1){
+      badge.textContent = "Bajista";
+      badge.style.background = "#D50000";
+    }else{
+      badge.textContent = "Neutral";
+      badge.style.background = "#FFAB00";
+    }
+
+    scoreText.textContent =
+      "Peso subiendo: "+upWeight.toFixed(2)+"% · Neutral: "+neutralWeight.toFixed(2)+
+      "% · Bajando: "+downWeight.toFixed(2)+"% · Balance: "+directionalWeight.toFixed(2)+" puntos";
+
+    return state;
+  }
+
+  function calculate(){
+    updateMag7();
+
+    var names = ["gex","sentiment","netdrift","mag7","vwap","vix","volume"];
+    var score = 0, bull = 0, neutral = 0, bear = 0;
+
+    names.forEach(function(name){
+      var v = selectedValue(name);
+      score += v * modelWeights[name];
+      if(v === 1) bull++;
+      else if(v === -1) bear++;
+      else neutral++;
+    });
+
+    var direction, color, probability, message;
+
+    if(score >= 15){
+      direction = "CALL";
+      color = "#00C853";
+      probability = Math.round(50 + Math.min(score,100) * 0.34);
+      message = "Predominio alcista.";
+    }else if(score <= -15){
+      direction = "PUT";
+      color = "#D50000";
+      probability = Math.round(50 + Math.min(Math.abs(score),100) * 0.34);
+      message = "Predominio bajista.";
+    }else{
+      direction = "NEUTRAL";
+      color = "#FFAB00";
+      probability = 50;
+      message = "No hay ventaja clara. Espera confirmación.";
+    }
+
+    document.getElementById("direction").textContent = direction;
+    document.getElementById("direction").style.color = color;
+    document.getElementById("percent").textContent = probability + "%";
+    document.getElementById("score").textContent =
+      bull+" alcistas · "+neutral+" neutrales · "+bear+" bajistas";
+    document.getElementById("message").textContent = message;
+  }
+
+  document.addEventListener("change", function(e){
+    if(e.target.matches('input[type="radio"]')) calculate();
+  });
+
+  calculate();
+})();
+</script>
+
+<script>
+(function(){
+  var storageKey = "spy0dte_trades_v1";
+
+  function getTrades(){
+    try{
+      return JSON.parse(localStorage.getItem(storageKey) || "[]");
+    }catch(e){
+      return [];
+    }
+  }
+
+  function setTrades(trades){
+    localStorage.setItem(storageKey, JSON.stringify(trades));
+  }
+
+  function money(value){
+    var sign = value < 0 ? "-$" : "$";
+    return sign + Math.abs(value).toFixed(2);
+  }
+
+  function formatDate(value){
+    if(!value) return "";
+    var d = new Date(value);
+    if(isNaN(d.getTime())) return value;
+    return d.toLocaleString();
+  }
+
+  window.saveTrade = function(){
+    var date = document.getElementById("tradeDate").value;
+    var side = document.getElementById("tradeSide").value;
+    var amount = Number(document.getElementById("tradeAmount").value);
+    var result = amount >= 0 ? "win" : "loss";
+    var notes = document.getElementById("tradeNotes").value.trim();
+
+    if(isNaN(amount) || amount===0){
+      alert("Escribe una cantidad distinta de 0.");
+      return;
+    }
+
+    var trades = getTrades();
+    trades.unshift({
+      id: Date.now(),
+      date: date || new Date().toISOString(),
+      side: side,
+      result: result,
+      amount: amount,
+      notes: notes
+    });
+
+    setTrades(trades);
+    document.getElementById("tradeAmount").value = "";
+    document.getElementById("tradeAmount").classList.remove("win-input", "loss-input");
+    document.getElementById("tradeResult").value = "---";
+    document.getElementById("tradeNotes").value = "";
+  renderTrades();
+  };
+
+  window.deleteTrade = function(id){
+    var trades = getTrades().filter(function(t){ return t.id !== id; });
+    setTrades(trades);
+    renderTrades();
+  };
+
+  window.clearTrades = function(){
+    if(confirm("¿Seguro que quieres borrar todos los trades?")){
+      localStorage.removeItem(storageKey);
+      renderTrades();
+    }
+  };
+
+  function renderTrades(){
+    var trades = getTrades();
+    var rows = document.getElementById("tradeRows");
+    rows.innerHTML = "";
+
+    var wins = 0;
+    var net = 0;
+
+    trades.forEach(function(t){
+      var signed = Number(t.amount);
+      // Compatibilidad con registros antiguos que pudieron guardarse con signo incorrecto.
+      if(t.result === "loss" && signed > 0) signed = -signed;
+      if(t.result === "win" && signed < 0) signed = Math.abs(signed);
+      if(t.result === "win") wins++;
+      net += signed;
+
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>"+formatDate(t.date)+"</td>"+
+        "<td>"+t.side+"</td>"+
+        '<td class="'+(t.result === "win" ? "win" : "loss")+'">'+
+          (t.result === "win" ? "WIN" : "LOSS")+
+        "</td>"+
+        '<td class="'+(signed >= 0 ? "win" : "loss")+'">'+money(signed)+"</td>"+
+        "<td>"+(t.notes || "")+"</td>"+
+        '<td><button class="delete-btn" onclick="deleteTrade('+t.id+')">Borrar</button></td>';
+      rows.appendChild(tr);
+    });
+
+    var total = trades.length;
+    var rate = total ? (wins / total) * 100 : 0;
+    var avg = total ? net / total : 0;
+
+    document.getElementById("totalTrades").textContent = total;
+    document.getElementById("winRate").textContent = rate.toFixed(1) + "%";
+    document.getElementById("netProfit").textContent = money(net);
+    document.getElementById("netProfit").className = "stat-value " + (net >= 0 ? "win" : "loss");
+    document.getElementById("avgTrade").textContent = money(avg);
+    document.getElementById("avgTrade").className = "stat-value " + (avg >= 0 ? "win" : "loss");
+  }
+
+  var now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById("tradeDate").value = now.toISOString().slice(0,16);
+
+  var amountInput = document.getElementById("tradeAmount");
+  amountInput.addEventListener("input", function(){
+    var v = Number(this.value);
+    var resultField = document.getElementById("tradeResult");
+
+    this.classList.remove("win-input", "loss-input");
+
+    if(isNaN(v) || v === 0){
+      resultField.value = "---";
+    }else if(v > 0){
+      resultField.value = "WIN";
+      this.classList.add("win-input");
+    }else{
+      resultField.value = "LOSS";
+      this.classList.add("loss-input");
+    }
+  });
+
+  renderTrades();
+})();
+</script>
+
+</body>
+</html>
